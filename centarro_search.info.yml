@@ -1,0 +1,7 @@
+type: module
+name: 'Centarro Search'
+description: 'Integrates Elastic Enterprise Search with Search API.'
+core_version_requirement: ^8.9 || ^9.2 || ^10
+package: Search
+dependencies:
+  - search_api:search_api

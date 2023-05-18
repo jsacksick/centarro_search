@@ -1,0 +1,129 @@
+<?php
+
+/**
+ * @file
+ * Integrates Elastic App Search with Search API.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\search_api\Entity\Server;
+use Drupal\centarro_search\Plugin\search_api\backend\ElasticEnterpriseSearchBackend;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function centarro_search_form_search_api_index_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // We need to restrict by form ID here because this function is also called
+  // via hook_form_BASE_FORM_ID_alter (which is wrong, e.g. in the case of the
+  // form ID search_api_field_config).
+  if (in_array($form_id, ['search_api_index_form', 'search_api_index_edit_form'])) {
+    $form['#validate'][] = 'centarro_search_form_search_api_index_form_validate_server';
+    $settings = [];
+    /** @var \Drupal\search_api\IndexInterface $index */
+    $index = $form_state->getFormObject()->getEntity();
+    if (!$index->isNew()) {
+      $settings = $index->getThirdPartySettings('centarro_search');
+    }
+
+    $form['third_party_settings']['centarro_search'] = [
+      '#tree' => TRUE,
+      '#type' => 'details',
+      '#title' => t('Elastic APP search specific index options.'),
+      '#collapsed' => TRUE,
+      '#states' => [
+        'visible' => [
+          ':input[name="server"]' => _centarro_search_index_settings_visibility(),
+        ],
+      ],
+    ];
+    $form['third_party_settings']['centarro_search']['engine'] = [
+      '#type' => 'textfield',
+      '#title' => t('Engine'),
+      '#description' => t('Specifies the Elastic APP search engine to use for this index'),
+      '#default_value' => $settings['engine'] ?? '',
+    ];
+    $form['third_party_settings']['centarro_search']['index'] = [
+      '#type' => 'textfield',
+      '#title' => t('Elastic Index'),
+      '#description' => t('Specifies the Elastic index to use (defaults to the Search API index id if not specified).'),
+      '#default_value' => $settings['index'] ?? '',
+    ];
+    $form['third_party_settings']['centarro_search']['engine_type'] = [
+      '#type' => 'select',
+      '#title' => t('Engine type'),
+      '#description' => t('Specifies the Elastic APP search engine type to use for this index.'),
+      '#options' => [
+        'default' => t('Default'),
+        'elasticsearch' => t('Elasticsearch index-based'),
+      ],
+      '#default_value' => $settings['engine_type'] ?? '',
+    ];
+  }
+}
+
+/**
+ * Validate callback for the Search API index form.
+ */
+function centarro_search_form_search_api_index_form_validate_server(array $form, FormStateInterface $form_state) {
+  if ($server = Server::load($form_state->getValue('server'))) {
+    if ($server->getBackend() instanceof ElasticEnterpriseSearchBackend) {
+      /** @var \Drupal\Core\Entity\EntityFormInterface $form_object */
+      $form_object = $form_state->getFormObject();
+      $this_index = $form_object->getEntity();
+      $third_party_settings = $this_index->getThirdPartySettings('centarro_search');
+      if (empty($third_party_settings['engine'])) {
+        $form_state->setError($form['third_party_settings']['centarro_search']['engine'], t('The engine name must be specified.'));
+      }
+    }
+  }
+}
+
+/**
+ * Get all Search API servers that use an Elastic APP search backend.
+ *
+ * @param bool $only_active
+ *
+ * @return \Drupal\search_api\ServerInterface[]
+ *
+ * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+ * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+ * @throws \Drupal\search_api\SearchApiException
+ */
+function centarro_search_get_servers($only_active = TRUE) {
+  $eas_servers = [];
+  $storage = \Drupal::entityTypeManager()->getStorage('search_api_server');
+  /** @var \Drupal\search_api\ServerInterface[] $servers */
+  $servers = $only_active ? $storage->loadByProperties(['status' => TRUE]) :
+    $storage->loadMultiple();
+  foreach ($servers as $server) {
+    if (
+      $server->hasValidBackend() &&
+      $server->getBackend() instanceof ElasticEnterpriseSearchBackend
+    ) {
+      $eas_servers[$server->id()] = $server;
+    }
+  }
+  return $eas_servers;
+}
+
+/**
+ * Returns visibility state status values.
+ *
+ * @return array
+ *
+ * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+ * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+ * @throws \Drupal\search_api\SearchApiException
+ *
+ * @see \centarro_search_form_search_api_index_form_alter
+ */
+function _centarro_search_index_settings_visibility() {
+  $valid_option = [];
+  $servers = centarro_search_get_servers(FALSE);
+  foreach ($servers as $server) {
+    $valid_option[] = [
+      'value' => $server->id(),
+    ];
+  }
+  return $valid_option;
+}

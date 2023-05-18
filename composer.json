@@ -1,0 +1,15 @@
+{
+    "name": "drupal/centarro_search",
+    "description": "Offers an implementation of the Search API that uses an Elastic Enterprise server for indexing content.",
+    "type": "drupal-module",
+    "homepage": "https://www.drupal.org/project/centarro_search",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "elasticsearch/elasticsearch": "^8",
+        "elastic/enterprise-search": "^8",
+        "drupal/search_api": "~1.17"
+    },
+    "suggest": {
+        "drupal/facets": "Provides facetted search."
+    }
+}
