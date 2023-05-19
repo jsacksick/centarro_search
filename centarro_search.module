@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Integrates Elastic App Search with Search API.
+ * Integrates Elastic Enterprise Search 8.x with Search API.
  */
 
 use Drupal\Core\Form\FormStateInterface;
@@ -56,7 +56,7 @@ function centarro_search_form_search_api_index_form_alter(&$form, FormStateInter
         'default' => t('Default'),
         'elasticsearch' => t('Elasticsearch index-based'),
       ],
-      '#default_value' => $settings['engine_type'] ?? '',
+      '#default_value' => $settings['engine_type'] ?? 'elasticsearch',
     ];
   }
 }
@@ -73,6 +73,9 @@ function centarro_search_form_search_api_index_form_validate_server(array $form,
       $third_party_settings = $this_index->getThirdPartySettings('centarro_search');
       if (empty($third_party_settings['engine'])) {
         $form_state->setError($form['third_party_settings']['centarro_search']['engine'], t('The engine name must be specified.'));
+      }
+      if (empty($third_party_settings['index'])) {
+        $form_state->setError($form['third_party_settings']['centarro_search']['index'], t('The Elastic index to use must be specified.'));
       }
     }
   }

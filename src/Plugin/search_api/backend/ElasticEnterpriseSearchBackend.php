@@ -96,7 +96,7 @@ class ElasticEnterpriseSearchBackend extends BackendPluginBase implements Plugin
         'index' => [
           '_index' => $this->getElasticIndexName($index),
           '_id' => $id,
-        ]
+        ],
       ];
       $params['body'][] = $document;
     }
@@ -114,17 +114,19 @@ class ElasticEnterpriseSearchBackend extends BackendPluginBase implements Plugin
    * {@inheritdoc}
    */
   public function deleteItems(IndexInterface $index, array $item_ids) {
-    // @todo figure out how to delete multiple items at once.
     try {
       $client = $this->getClient();
-      /*$client->deleteByQuery([
-        'index' => $this->getElasticIndexName($index),
-        'body' => [
-          'query' => [
-            'match_all' => new \stdClass(),
+      $params = [];
+      // Use the Bulk API to delete multiple items at once.
+      foreach ($item_ids as $id) {
+        $params['body'][] = [
+          'delete' => [
+            '_index' => $this->getElasticIndexName($index),
+            '_id' => $id,
           ],
-        ],
-      ]);*/
+        ];
+      }
+      $client->bulk($params);
     }
     catch (\Exception $exception) {
       throw new SearchApiException($exception->getMessage());
@@ -576,7 +578,7 @@ class ElasticEnterpriseSearchBackend extends BackendPluginBase implements Plugin
    */
   protected function getEngineType(IndexInterface $index): string {
     $third_party_settings = $index->getThirdPartySettings('centarro_search');
-    return $third_party_settings['engine_type'] ?? 'default';
+    return $third_party_settings['engine_type'] ?? 'elasticsearch';
   }
 
   /**
